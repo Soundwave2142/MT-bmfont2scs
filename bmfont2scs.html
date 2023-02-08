@@ -1,0 +1,62 @@
+<html lang="en">
+<head>
+
+    <!-- libs -->
+    <script src="resources/libs/jquery.min.js"></script>
+    <script src="resources/libs/filesaver.min.js"></script>
+    <script src="resources/libs/jszip.min.js"></script>
+
+    <!-- scripts -->
+    <script src="resources/js/bmfont2scs-helper.js"></script>
+    <script src="resources/js/bmfont2scs-ziper.js"></script>
+    <script src="resources/js/bmfont2scs.js"></script>
+
+    <!-- styles -->
+    <link rel="stylesheet" href="resources/css/bmfont2scs.css">
+
+    <!-- meta -->
+    <title>Modding Tool BMFont2SCS (MT-bmfont2scs) by Soundwave2142</title>
+
+</head>
+
+<body class="main-body">
+    <div class="main-block">
+        <!-- header -->
+        <div class="header">
+            <h2>
+                Modding Tool BMFont2SCS (MT-bmfont2scs) by Soundwave2142 for ETS2/ATS
+            </h2>
+            <h3><a href="https://github.com/Soundwave2142/TS-bmfont2scs">Github link</a></h3>
+            <hr>
+        </div>
+
+        <!-- input fields -->
+        <div class="inputs">
+            <div class="upload-div">
+                Select bmfont file (.fnt) :
+                <input type="file" id="file-input" single>
+            </div>
+
+            <!-- input fields -->
+            <div class="selector-div">
+                <p>
+                    Kerning is limited to 1535 in the game, please select what to do in case amount of kernings from bmfile
+                    is bigger than limit
+                </p>
+
+                <input type="radio" id="kerning-option-keep" name="kerningOption" value="keep" checked>
+                <label for="kerning-option-keep">Keep limited amount</label>
+                <input type="radio" id="kerning-option-dont" name="kerningOption" value="dontInclude">
+                <label for="kerning-option-dont">Don't include kerning at all</label>
+            </div>
+        </div>
+
+        <!-- footer -->
+        <div class="footer">
+            <hr>
+            <button type="button" style="display:none;" id="convert-btn">Convert</button>
+        </div>
+    </div>
+</body>
+
+</html>
