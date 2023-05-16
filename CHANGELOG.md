@@ -1,5 +1,10 @@
 # `Change log`
 
+---------------
+### 1.2.0 - 20.05.2023
+- JS files reworked and refactored
+- Project Archived
+
 ### 1.1.0 - 08.02.2023
 - Restructure of the files (split into sever files/classes) and minor refactoring + minor text changes
 - Commit history reset + `README.MD` update

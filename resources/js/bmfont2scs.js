@@ -7,22 +7,16 @@
  * Original idea by Etrusan
  *
  * 02.28.2021
- *
- * TODO: this is a mess, refactor
- *
  */
-
 
 /* set up converter events when page is done loading */
 $(document).ready(function () {
-    const converter = new BMFont2SCS();
-
     $("#file-input").on('change', function () {
         $("#convert-btn").show();
     });
 
     $('#convert-btn').on('click', function () {
-        converter.convert();
+        (new BMFont2SCS()).convert();
     });
 });
 
@@ -30,143 +24,135 @@ $(document).ready(function () {
  * Convertor class
  */
 class BMFont2SCS {
-    /**
-     * @type {{kernelLimit: number}}
-     */
-    config = {
-        kernelLimit: 1535
-    }
-
-    /**
-     * @type {FileReader}
-     */
-    fr = new FileReader();
 
     /**
      * @type {BMFont2SCSHelper}
      */
     helper = new BMFont2SCSHelper();
 
+    /**
+     * @type {string}
+     */
+    fileContents = '';
+
+    /**
+     * @type {[]}
+     */
+    chars = [];
+
+    /**
+     * @type {[]}
+     */
+    kernings = [];
+
+    /**
+     * Assign on load event then load the file
+     */
     convert() {
-        const that = this;
+        const self = this;
+        const fileReader = new FileReader();
 
-        this.fr.onload = function () {
-            that.onFileLoad(that);
-        }
-
-        this.fr.readAsText($("#file-input").prop('files')[0]);
-    }
-
-    onFileLoad = function (that) {
-        let generalInfo = {
-            vert_span: that.helper.find(that.fr.result, 'lineHeight='),
-            line_spacing: 0,
-            width: that.helper.find(that.fr.result, 'scaleW='),
-            height: that.helper.find(that.fr.result, 'scaleH='),
-            filename: that.helper.find(that.fr.result, 'file="').split('.')[0]
-        };
-
-        let kerning = [], coordinates = [];
-
-        that.fr.result.split(/\r?\n/).forEach(function (line) {
-            let result;
-            let isKerningLine = line.startsWith("kerning first=");
-
-            if (line.startsWith("char id=") || isKerningLine) {
-                result = that.handleData(line, isKerningLine);
-                if (result) {
-                    coordinates.push(result);
-                }
-            }
-        });
-
-        kerning.sort(that.sortFunction);
-        that.outputData(generalInfo, coordinates, kerning);
-    }
-
-    /**
-     * @param item
-     * @param kerning
-     * @returns {*}
-     */
-    handleData(item, kerning = false) {
-        var arrayCoords = [];
-
-        item.replace(/[^0-9 \-+]+/g, "").split(" ").forEach(function (coords) {
-            if (coords !== '') {
-                arrayCoords.push(coords);
-            }
-        });
-
-        if (arrayCoords.length > 0) {
-            arrayCoords[0] = this.helper.convertDecToHex(arrayCoords[0]);
-
-            if (!kerning) {
-                arrayCoords.pop();
-            } else {
-                arrayCoords[1] = this.helper.convertDecToHex(arrayCoords[1]);
-            }
-
-            return arrayCoords;
-        }
-
-        return false;
-    }
-
-    /**
-     * @param info
-     * @param coords
-     * @param kerning
-     */
-    outputData(info, coords, kerning) {
-        let that = this;
-        var result = 'vert_span:' + info.vert_span + '\nline_spacing:' + info.line_spacing + '\n\nimage:' + info.filename + '.mat, ' + info.width + ', ' + info.height + '\n\n';
-
-        result += '#NUM,    P_x, P_y,  W,  H,  L,  T,  A,  I     # character / glyph name\n\n';
-        coords.forEach(function (setOfCoords) {
-
-            setOfCoords.forEach(function (coord, key) {
-                var itemLength = coord.length;
-                var max = key > 2 ? 3 : 5;
-
-                coord += setOfCoords.length > (key + 1) ? ',' : '';
-                for (var i = 0; i < (max - itemLength); i++) {
-                    coord = ' ' + coord;
-                }
-
-                result += coord;
+        fileReader.onload = function () {
+            // load file reader result into file, then handle each line separately.
+            self.fileContents = fileReader.result;
+            self.fileContents.split(/\r?\n/).forEach(function (line) {
+                self.handleLine(line)
             });
 
-            result += '     # \'' + that.helper.getUnicodeFromHex(setOfCoords[0]) + '\'\n';
-        });
-
-        if (kerning.length < this.config.kerningLimit || document.querySelector('input[name="kerningOption"]:checked').value === 'keep') {
-            result += '\n# kerning...\n\n';
-
-            var BreakException = {};
-
-            try {
-                kerning.forEach(function (setOfKerns, key) {
-                    if (key >= that.config.kerningLimit) {
-                        throw BreakException
-                    }
-
-                    result += 'kern: ' + setOfKerns[0] + ', ' + setOfKerns[1] + ', ' + setOfKerns[2] + '      # \''
-                        + that.helper.getUnicodeFromHex(setOfKerns[0]) + '\' -> \''
-                        + that.helper.getUnicodeFromHex(setOfKerns[1]) + '\'\n';
-                });
-            } catch (e) {
-                if (e !== BreakException) throw e;
-            }
+            self.outputData();
         }
 
-        let mat = 'material : "ui.white_font" {\n	texture : "' + info.filename + '.tobj"\n	texture_name : "texture"\n}\n';
-        let tobj = 'map 2d	' + info.filename + '.tga\naddr\n     clamp_to_edge\n     clamp_to_edge\ncolor_space linear\nnomips\nnocompress\n';
+        fileReader.readAsText($("#file-input").prop('files')[0]);
+    }
 
-        this.zip = new BMFont2SCSZipper();
-        this.zip.createFile(info.filename, 'font', result)
-            .createFile(info.filename, 'mat', mat)
-            .createFile(info.filename, 'tobj', tobj)
-            .saveFile('bmfont2scs_' + info.filename)
+    /**
+     * @param line
+     */
+    handleLine(line) {
+        let isCharLine = line.startsWith("char id=");
+        let isKerningLine = line.startsWith("kerning first=");
+        if (!isCharLine && !isKerningLine) {
+            return;
+        }
+
+        this.handleLineData(line, isCharLine, isKerningLine);
+    }
+
+    /**
+     * @param line {string}
+     * @param isCharLine {boolean}
+     * @param isKerningLine {boolean}
+     *
+     * @returns {boolean|*}
+     */
+    handleLineData(line, isCharLine, isKerningLine) {
+        // remove every non number symbol, split the line into chars to filter out empty chars
+        // the change type of coordinate to int for further processing
+        const coordinates = line.replace(/[^0-9 \-+]+/g, "").split(" ")
+            .filter(number => number.trim().length !== 0); // .map(coordinate => parseInt(coordinate)); <-- currently int not needed.
+
+        if (coordinates.length <= 0) {
+            return;
+        }
+
+        if (isCharLine) {
+            this.handleCharCoordinates(coordinates);
+        } else if (isKerningLine) {
+            this.handleKerningCoordinates(coordinates);
+        }
+    }
+
+    /**
+     * @param coordinates
+     */
+    handleCharCoordinates(coordinates) {
+        coordinates[0] = this.helper.convertDecToHex(coordinates[0]); // convert first to hex, which is id
+        coordinates.pop(); // and pop last, which is "chnl" and not needed
+
+        this.chars.push(coordinates);
+    }
+
+    /**
+     * @param coordinates
+     */
+    handleKerningCoordinates(coordinates) {
+        // both first and second element are ids and needed to be in hex format
+        coordinates[0] = this.helper.convertDecToHex(coordinates[0]);
+        coordinates[1] = this.helper.convertDecToHex(coordinates[1]);
+
+        this.kernings.push(coordinates);
+    }
+
+
+    /**
+     * pack processed lines into files and pack files into zip
+     */
+    outputData() {
+        this.kernings.sort(this.helper.sortFunction);
+
+        const fileName = this.findInFile('file="').split('.')[0]
+        const fileConfig = {
+            kerningKeepIfLimit: $('input[name="kerningOption"]:checked').val() === 'keep',
+            generalInfo: [
+                'vert_span:' + this.findInFile('lineHeight='),
+                'line_spacing:' + '0',
+                'image:' + fileName + '.mat, ' + this.findInFile('scaleW=') + ', ' + this.findInFile('scaleH=')
+            ]
+        };
+
+        (new BMFont2SCSFileCreator(fileConfig)) // create three needed files and pack them to zip
+            .createFontFile(fileName, this.chars, this.kernings)
+            .createMatFile(fileName)
+            .createTobjFile(fileName)
+            .saveZip('bmfont2scs_' + fileName);
+    }
+
+    /**
+     * @param key
+     *
+     * @returns {*|string}
+     */
+    findInFile(key) {
+        return this.helper.find(this.fileContents, key);
     }
 }

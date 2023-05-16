@@ -7,7 +7,6 @@
  * Original idea by Etrusan
  *
  * 02.28.2021
- *
  */
 
 class BMFont2SCSHelper {
@@ -18,7 +17,7 @@ class BMFont2SCSHelper {
      *
      * @returns {number}
      */
-    sortFunction(a, b) {
+    sortFunction = function (a, b) {
         if (a[0] === b[0]) {
             return 0;
         } else {
@@ -41,10 +40,10 @@ class BMFont2SCSHelper {
      * @returns {string}
      */
     convertDecToHex(val) {
-        var element = parseInt(val, 10).toString(16);
-        var prefix = 'x';
+        const element = parseInt(val, 10).toString(16);
+        let prefix = 'x';
 
-        for (var i = element.length; i < 4; i++) {
+        for (let i = element.length; i < 4; i++) {
             prefix += '0';
         }
 
